@@ -162,5 +162,99 @@ def confirmation(outputs):
 ```
 
 ## Using tools in Agents
+They help in establishing connections with external resources and allow us to fetch or push 
+data to these resources. 
+Some Use Cases of these tools:
+- Go through Files and Folders in the File System
+- Web Scraping and Browsing
+- Database Connections
+- Code Execution
 
- 
+### Considerations for Tool Calling
+1) **Error Handling** - building robust Exceptions for gracefully handling failures.
+2) **Caching** - cross agent caching to optimize performance and reduce redundant operations.
+3) **Asynchronous support**
+
+You can either give tools to the agents or assign tools to the tasks itself that required to accomplish that specific task only.
+
+### Components of Tools
+There are 2 components:
+1) Simple interface 
+       - name
+       - description
+       - inputs
+2) Custom Code
+       - authentication
+       - API calling
+       - service connection
+
+For instance, consider creating a CUSTOM *Website Scraping Tool* <br>
+*Name*: Read Website Content <br>
+*Description*: A tool that can be used to read the content from the provided website <br>
+*Inputs*: {website_url : str} <br>
+
+*Custom code*: Simple scraping logic using http requests. <br>
+
+ ```python
+
+       import requests
+       from crewai_tools import tool
+
+       @tool("Read website content")
+       def read_website_content(website_url: str) -> str:
+              """ A tools that reads content from a website"""  # <--- Tool Description
+              try:
+                     response = requests.get(website_url, timeout=5)
+                     response.raise_for_status()
+                     return response.text
+              exception e:
+                     return f"Failed to read website: {str(e)}"
+
+
+       from crewai import Agent
+
+       agent = Agent(
+              role='Web Reader',
+              goal = 'Understand and summarize content from websites',
+              backstory = 'You specialize in reading and summarizing website content',
+              tools = [read_website_content],
+              verbose = True,
+              memory = True
+       )
+
+ ```
+
+We can also use the BUILT IN ENTERPRISE CONNECTORS:
+
+```python
+
+from crewai import Agent
+from crewai_tools import CrewaiEnterpriseTools
+
+# Get the Enterprise tool (Gmail tool)
+ent_tool = CrewaiEnterpriseTools(enterprise_token = "your_enterprise_token")
+
+# Create an agent with Gmail capabilities
+email_agent = Agent(
+       role = "Email Manager",
+       goal = "Manage and Organize email communications",
+       backstory = "An AI assistant specialized in emails",
+       tools = [ent_tool]
+)
+
+```
+
+
+### Tool Reliability
+How to configure tools for reliable run time behavior?
+
+1) Force Return
+- Directly return the output of the tool so that the agent does not mess with it
+- specify return_direct = True in agent construction
+
+2) Rate Limits
+- Use retry login and set max usage limits to help agents recover from temporary failures and prevent infinite loops.
+- Since some built in tools come with hard requirements in terms of how many requests you can make in a certain period of time.
+
+3) Tool Repository
+- Promotes reuse and sharing of tools across multiple agents and tasks
